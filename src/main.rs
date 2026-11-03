@@ -32,19 +32,8 @@ async fn main() {
         .expect("video path required")
         .into();
 
-    let mut frames = Vec::new();
-    let frame_source = FileSource::new(Path::new(&video_path), (480, 360)).unwrap();
-    for frame in frame_source.into_iter() {
-        if let Ok(Some(data)) = frame {
-            let image = load_from_memory(&data).unwrap();
-            let result: String = TextGenerator::new(&image).generate();
-            frames.push(result);
-            println!("Loading frame...");
-        }
-    }
-
     let state = Arc::new(AppState {
-        frame: RwLock::new(frames.pop().unwrap().to_string()),
+        frame: RwLock::new("Loading...".into()),
         frame_notify: Notify::new(),
     });
 
@@ -62,7 +51,17 @@ async fn main() {
     let listener = TcpListener::bind(host_port).await.unwrap();
 
     spawn(async move {
-        loop {
+        let mut frames = Vec::new();
+        let frame_source = FileSource::new(Path::new(&video_path), (480, 360)).unwrap();
+
+        for frame in frame_source.into_iter() {
+            if let Ok(Some(data)) = frame {
+                let image = load_from_memory(&data).unwrap();
+                let result: String = TextGenerator::new(&image).generate();
+                frames.push(result);
+                println!("Processing frame...");
+            }
+
             let result = frames.pop();
 
             if let Some(new_frame) = result {
